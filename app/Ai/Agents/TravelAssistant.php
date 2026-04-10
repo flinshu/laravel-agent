@@ -37,8 +37,6 @@ class TravelAssistant implements Agent, Conversational, HasTools
         # 重要提示:
         - 每次只执行一个工具调用
         - 当收集到足够信息可以回答用户问题时，给出最终答案
-        - 当用户表达旅行偏好时（如喜欢历史景点、预算范围、出行方式），使用 SavePreference 工具保存
-        - 在推荐景点前，先使用 GetPreferences 工具查看用户是否有已保存的偏好，据此提供个性化建议
         PROMPT;
     }
 
