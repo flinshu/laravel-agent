@@ -30,6 +30,7 @@ class TravelAssistantTest extends TestCase
         $this->assertStringContainsString('智能旅行助手', $instructions);
         $this->assertStringContainsString('GetWeather', $instructions);
         $this->assertStringContainsString('GetAttraction', $instructions);
+        $this->assertStringContainsString('可用工具', $instructions);
     }
 
     public function test_travel_assistant_can_be_prompted_with_fake(): void
