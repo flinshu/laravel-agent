@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Ai\Agents\TravelAssistant;
 use App\Ai\Tools\GetAttraction;
 use App\Ai\Tools\GetWeather;
+use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
 
 class TravelAssistantTest extends TestCase
@@ -26,7 +27,7 @@ class TravelAssistantTest extends TestCase
 
         $instructions = (string) $agent->instructions();
 
-        $this->assertStringContainsString('travel assistant', $instructions);
+        $this->assertStringContainsString('智能旅行助手', $instructions);
         $this->assertStringContainsString('GetWeather', $instructions);
         $this->assertStringContainsString('GetAttraction', $instructions);
     }
@@ -60,7 +61,7 @@ class TravelAssistantTest extends TestCase
 
     public function test_travel_assistant_command_is_registered(): void
     {
-        $commands = \Illuminate\Support\Facades\Artisan::all();
+        $commands = Artisan::all();
 
         $this->assertArrayHasKey('travel:ask', $commands);
     }

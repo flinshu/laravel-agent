@@ -29,10 +29,10 @@ class GetAttraction implements Tool
 
         $response = agent(
             instructions: <<<'PROMPT'
-            You are a travel expert. Based on the city and weather provided, recommend 2-3 tourist attractions.
-            For each attraction, explain why it is suitable for the given weather.
-            Reply in the same language as the city name.
-            Be concise and practical.
+            你是一位旅行专家。根据提供的城市和天气信息，推荐 2-3 个旅游景点。
+            对每个景点，说明它为什么适合当前天气。
+            使用与城市名称相同的语言回复。
+            回答要简洁实用。
             PROMPT,
         )->prompt(
             "City: {$city}, Weather: {$weather}. Please recommend suitable tourist attractions.",
