@@ -55,7 +55,7 @@ class TravelAssistantTest extends TestCase
     {
         $tool = new GetAttraction;
 
-        $this->assertStringContainsString('attraction', strtolower((string) $tool->description()));
+        $this->assertStringContainsString('景点', (string) $tool->description());
     }
 
     public function test_travel_assistant_command_is_registered(): void

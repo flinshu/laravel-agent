@@ -3,11 +3,10 @@
 namespace App\Ai\Tools;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Illuminate\Support\Facades\Http;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request;
 use Stringable;
-
-use function Laravel\Ai\agent;
 
 class GetAttraction implements Tool
 {
@@ -16,7 +15,7 @@ class GetAttraction implements Tool
      */
     public function description(): Stringable|string
     {
-        return 'Search and recommend tourist attractions for a given city based on the current weather conditions.';
+        return '根据城市和天气搜索推荐的旅游景点。';
     }
 
     /**
@@ -27,26 +26,44 @@ class GetAttraction implements Tool
         $city = $request['city'];
         $weather = $request['weather'];
 
-        $response = agent(
-            instructions: <<<'PROMPT'
-            你是一位旅行专家。根据提供的城市和天气信息，推荐 2-3 个旅游景点。
-            对每个景点，说明它为什么适合当前天气。
-            使用与城市名称相同的语言回复。
-            回答要简洁实用。
-            PROMPT,
-        )->prompt(
-            "City: {$city}, Weather: {$weather}. Please recommend suitable tourist attractions.",
-            provider: 'groq',
-            model: 'glm-5.1',
-        );
+        $apiKey = config('services.tavily.key');
 
-        $text = (string) $response;
-
-        if (empty(trim($text))) {
-            return "Sorry, could not find attraction recommendations for {$city} in {$weather} weather.";
+        if (empty($apiKey)) {
+            return '错误：未配置 TAVILY_API_KEY。';
         }
 
-        return $text;
+        $query = "'{$city}' 在'{$weather}'天气下最值得去的旅游景点推荐及理由";
+
+        $response = Http::timeout(15)
+            ->connectTimeout(5)
+            ->withToken($apiKey, 'Bearer')
+            ->post('https://api.tavily.com/search', [
+                'query' => $query,
+                'search_depth' => 'basic',
+                'include_answer' => true,
+            ]);
+
+        if ($response->failed()) {
+            return "错误：执行Tavily搜索时出现问题 - HTTP {$response->status()}";
+        }
+
+        $data = $response->json();
+
+        if ($answer = data_get($data, 'answer')) {
+            return $answer;
+        }
+
+        $results = data_get($data, 'results', []);
+
+        if (empty($results)) {
+            return '抱歉，没有找到相关的旅游景点推荐。';
+        }
+
+        $formatted = collect($results)
+            ->map(fn (array $result) => "- {$result['title']}: {$result['content']}")
+            ->implode("\n");
+
+        return "根据搜索，为您找到以下信息：\n{$formatted}";
     }
 
     /**
