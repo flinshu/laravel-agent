@@ -2,10 +2,12 @@
 
 namespace App\Ai\Agents;
 
+use App\Ai\Tools\CheckTicketAvailability;
 use App\Ai\Tools\GetAttraction;
 use App\Ai\Tools\GetPreferences;
 use App\Ai\Tools\GetWeather;
 use App\Ai\Tools\SavePreference;
+use App\Ai\Tools\TrackRejection;
 use Laravel\Ai\Attributes\MaxSteps;
 use Laravel\Ai\Attributes\Model;
 use Laravel\Ai\Attributes\Provider;
@@ -50,8 +52,10 @@ class TravelAssistant implements Agent, Conversational, HasTools
         return [
             new GetWeather,
             new GetAttraction,
+            new CheckTicketAvailability,
             new SavePreference($this->userId),
             new GetPreferences($this->userId),
+            new TrackRejection($this->userId),
         ];
     }
 }

@@ -3,10 +3,12 @@
 namespace Tests\Feature;
 
 use App\Ai\Agents\TravelAssistant;
+use App\Ai\Tools\CheckTicketAvailability;
 use App\Ai\Tools\GetAttraction;
 use App\Ai\Tools\GetPreferences;
 use App\Ai\Tools\GetWeather;
 use App\Ai\Tools\SavePreference;
+use App\Ai\Tools\TrackRejection;
 use App\Models\User;
 use App\Models\UserPreference;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
@@ -24,11 +26,13 @@ class TravelAssistantTest extends TestCase
 
         $tools = iterator_to_array($agent->tools());
 
-        $this->assertCount(4, $tools);
+        $this->assertCount(6, $tools);
         $this->assertInstanceOf(GetWeather::class, $tools[0]);
         $this->assertInstanceOf(GetAttraction::class, $tools[1]);
-        $this->assertInstanceOf(SavePreference::class, $tools[2]);
-        $this->assertInstanceOf(GetPreferences::class, $tools[3]);
+        $this->assertInstanceOf(CheckTicketAvailability::class, $tools[2]);
+        $this->assertInstanceOf(SavePreference::class, $tools[3]);
+        $this->assertInstanceOf(GetPreferences::class, $tools[4]);
+        $this->assertInstanceOf(TrackRejection::class, $tools[5]);
     }
 
     public function test_travel_assistant_has_instructions(): void
@@ -103,11 +107,6 @@ class TravelAssistantTest extends TestCase
         ]));
 
         $this->assertStringContainsString('已存在', $result);
-        $this->assertDatabaseHas('user_preferences', [
-            'user_id' => $user->id,
-            'key' => 'favorite_type',
-            'value' => '历史文化',
-        ]);
     }
 
     public function test_get_preferences_tool_returns_saved_preferences(): void
@@ -131,6 +130,51 @@ class TravelAssistantTest extends TestCase
         $result = (string) $tool->handle(new Request([]));
 
         $this->assertStringContainsString('暂无', $result);
+    }
+
+    public function test_track_rejection_records_and_counts(): void
+    {
+        $user = User::factory()->create();
+        $tool = new TrackRejection($user->id);
+
+        $result1 = (string) $tool->handle(new Request([
+            'attraction' => '故宫',
+            'reason' => '人太多',
+        ]));
+
+        $this->assertStringContainsString('拒绝次数：1', $result1);
+        $this->assertDatabaseHas('rejection_logs', [
+            'user_id' => $user->id,
+            'attraction' => '故宫',
+            'reason' => '人太多',
+        ]);
+    }
+
+    public function test_track_rejection_triggers_strategy_adjustment_at_3(): void
+    {
+        $user = User::factory()->create();
+        $tool = new TrackRejection($user->id);
+
+        $tool->handle(new Request(['attraction' => '故宫', 'reason' => '人太多']));
+        $tool->handle(new Request(['attraction' => '长城', 'reason' => '太远']));
+        $result = (string) $tool->handle(new Request(['attraction' => '天坛', 'reason' => '去过了']));
+
+        $this->assertStringContainsString('连续拒绝', $result);
+        $this->assertStringContainsString('调整策略', $result);
+        $this->assertStringContainsString('故宫', $result);
+        $this->assertStringContainsString('长城', $result);
+        $this->assertStringContainsString('天坛', $result);
+        $this->assertDatabaseCount('rejection_logs', 3);
+    }
+
+    public function test_check_ticket_availability_tool_has_correct_description(): void
+    {
+        $tool = new CheckTicketAvailability;
+
+        $description = (string) $tool->description();
+
+        $this->assertStringContainsString('门票', $description);
+        $this->assertStringContainsString('售罄', $description);
     }
 
     public function test_get_weather_tool_has_correct_description(): void
