@@ -72,22 +72,41 @@ class TravelAssistantTest extends TestCase
         ]);
     }
 
-    public function test_save_preference_tool_updates_existing_preference(): void
+    public function test_save_preference_tool_appends_to_existing(): void
     {
         $user = User::factory()->create();
-        UserPreference::create(['user_id' => $user->id, 'key' => 'budget', 'value' => '500元']);
+        UserPreference::create(['user_id' => $user->id, 'key' => 'favorite_type', 'value' => '历史文化']);
 
         $tool = new SavePreference($user->id);
         $tool->handle(new Request([
-            'key' => 'budget',
-            'value' => '1000元',
+            'key' => 'favorite_type',
+            'value' => '自然风光',
         ]));
 
         $this->assertDatabaseCount('user_preferences', 1);
         $this->assertDatabaseHas('user_preferences', [
             'user_id' => $user->id,
-            'key' => 'budget',
-            'value' => '1000元',
+            'key' => 'favorite_type',
+            'value' => '历史文化, 自然风光',
+        ]);
+    }
+
+    public function test_save_preference_tool_skips_duplicate_value(): void
+    {
+        $user = User::factory()->create();
+        UserPreference::create(['user_id' => $user->id, 'key' => 'favorite_type', 'value' => '历史文化']);
+
+        $tool = new SavePreference($user->id);
+        $result = (string) $tool->handle(new Request([
+            'key' => 'favorite_type',
+            'value' => '历史文化',
+        ]));
+
+        $this->assertStringContainsString('已存在', $result);
+        $this->assertDatabaseHas('user_preferences', [
+            'user_id' => $user->id,
+            'key' => 'favorite_type',
+            'value' => '历史文化',
         ]);
     }
 

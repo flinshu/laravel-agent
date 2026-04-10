@@ -25,12 +25,33 @@ class SavePreference implements Tool
      */
     public function handle(Request $request): Stringable|string
     {
-        UserPreference::updateOrCreate(
-            ['user_id' => $this->userId, 'key' => $request['key']],
-            ['value' => $request['value']],
-        );
+        $key = $request['key'];
+        $value = $request['value'];
 
-        return "已保存用户偏好：{$request['key']} = {$request['value']}";
+        $existing = UserPreference::where('user_id', $this->userId)
+            ->where('key', $key)
+            ->first();
+
+        if (! $existing) {
+            UserPreference::create([
+                'user_id' => $this->userId,
+                'key' => $key,
+                'value' => $value,
+            ]);
+
+            return "已保存用户偏好：{$key} = {$value}";
+        }
+
+        $existingValues = array_map('trim', explode(',', $existing->value));
+
+        if (in_array($value, $existingValues)) {
+            return "用户偏好已存在：{$key} = {$existing->value}";
+        }
+
+        $existingValues[] = $value;
+        $existing->update(['value' => implode(', ', $existingValues)]);
+
+        return "已更新用户偏好：{$key} = {$existing->value}";
     }
 
     /**
