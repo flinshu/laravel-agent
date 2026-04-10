@@ -50,7 +50,7 @@ class GetAttraction implements Tool
         $data = $response->json();
 
         if ($answer = data_get($data, 'answer')) {
-            return $answer;
+            return mb_convert_encoding($answer, 'UTF-8', 'UTF-8');
         }
 
         $results = data_get($data, 'results', []);
@@ -60,7 +60,7 @@ class GetAttraction implements Tool
         }
 
         $formatted = collect($results)
-            ->map(fn (array $result) => "- {$result['title']}: {$result['content']}")
+            ->map(fn (array $result) => '- '.mb_convert_encoding($result['title'].': '.$result['content'], 'UTF-8', 'UTF-8'))
             ->implode("\n");
 
         return "根据搜索，为您找到以下信息：\n{$formatted}";
