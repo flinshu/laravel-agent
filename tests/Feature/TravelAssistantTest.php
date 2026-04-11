@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Ai\Agents\PlannerAgent;
 use App\Ai\Agents\RouterAgent;
 use App\Ai\Agents\TravelAssistant;
 use App\Ai\Tools\CheckTicketAvailability;
@@ -243,5 +244,36 @@ class TravelAssistantTest extends TestCase
         $response = (new RouterAgent)->prompt('帮我规划3天北京深度游');
 
         $this->assertEquals('complex', trim($response->text));
+    }
+
+    public function test_planner_agent_has_no_tools(): void
+    {
+        $agent = new PlannerAgent;
+
+        $this->assertFalse($agent instanceof HasTools);
+    }
+
+    public function test_planner_agent_has_instructions(): void
+    {
+        $agent = new PlannerAgent;
+
+        $instructions = (string) $agent->instructions();
+
+        $this->assertStringContainsString('规划', $instructions);
+        $this->assertStringContainsString('步骤', $instructions);
+    }
+
+    public function test_planner_agent_generates_plan(): void
+    {
+        PlannerAgent::fake([
+            "1. 查询北京未来3天天气\n2. 获取用户旅行偏好\n3. 推荐Day1景点\n4. 推荐Day2景点\n5. 推荐Day3景点\n6. 检查门票可用性\n7. 整合成完整行程表",
+        ]);
+
+        $response = (new PlannerAgent)->prompt('帮我规划3天北京深度游');
+
+        $this->assertStringContainsString('天气', $response->text);
+        $this->assertStringContainsString('Day1', $response->text);
+
+        PlannerAgent::assertPrompted(fn ($prompt) => str_contains($prompt->prompt, '3天'));
     }
 }
