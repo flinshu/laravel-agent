@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Ai\Agents\PlannerAgent;
+use App\Ai\Agents\ReviewerAgent;
 use App\Ai\Agents\RouterAgent;
 use App\Ai\Agents\TravelAssistant;
 use App\Ai\Tools\CheckTicketAvailability;
@@ -275,5 +276,59 @@ class TravelAssistantTest extends TestCase
         $this->assertStringContainsString('Day1', $response->text);
 
         PlannerAgent::assertPrompted(fn ($prompt) => str_contains($prompt->prompt, '3天'));
+    }
+
+    public function test_reviewer_agent_has_correct_tools(): void
+    {
+        $agent = new ReviewerAgent(userId: 1);
+
+        $tools = iterator_to_array($agent->tools());
+
+        $this->assertCount(3, $tools);
+        $this->assertInstanceOf(CheckTicketAvailability::class, $tools[0]);
+        $this->assertInstanceOf(GetWeather::class, $tools[1]);
+        $this->assertInstanceOf(GetPreferences::class, $tools[2]);
+    }
+
+    public function test_reviewer_agent_has_instructions(): void
+    {
+        $agent = new ReviewerAgent(userId: 1);
+
+        $instructions = (string) $agent->instructions();
+
+        $this->assertStringContainsString('质量检查', $instructions);
+        $this->assertStringContainsString('无需改进', $instructions);
+        $this->assertStringContainsString('门票', $instructions);
+    }
+
+    public function test_reviewer_agent_does_not_have_get_attraction_tool(): void
+    {
+        $agent = new ReviewerAgent(userId: 1);
+
+        $tools = iterator_to_array($agent->tools());
+        $toolClasses = array_map(fn ($tool) => get_class($tool), $tools);
+
+        $this->assertNotContains(GetAttraction::class, $toolClasses);
+        $this->assertNotContains(SavePreference::class, $toolClasses);
+        $this->assertNotContains(TrackRejection::class, $toolClasses);
+    }
+
+    public function test_reviewer_agent_can_approve_result(): void
+    {
+        ReviewerAgent::fake(['无需改进']);
+
+        $response = (new ReviewerAgent(userId: 1))->prompt('请检查以下旅行推荐结果：推荐故宫');
+
+        $this->assertStringContainsString('无需改进', $response->text);
+    }
+
+    public function test_reviewer_agent_can_reject_result(): void
+    {
+        ReviewerAgent::fake(['[问题1]: 故宫门票已售罄（事实：今日无余票）']);
+
+        $response = (new ReviewerAgent(userId: 1))->prompt('请检查以下旅行推荐结果：推荐故宫');
+
+        $this->assertStringContainsString('问题', $response->text);
+        $this->assertStringNotContainsString('无需改进', $response->text);
     }
 }
