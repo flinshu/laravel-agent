@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Ai\Agents\RouterAgent;
 use App\Ai\Agents\TravelAssistant;
 use App\Ai\Tools\CheckTicketAvailability;
 use App\Ai\Tools\GetAttraction;
@@ -13,6 +14,7 @@ use App\Models\User;
 use App\Models\UserPreference;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
+use Laravel\Ai\Contracts\HasTools;
 use Laravel\Ai\Tools\Request;
 use Tests\TestCase;
 
@@ -196,5 +198,50 @@ class TravelAssistantTest extends TestCase
         $commands = Artisan::all();
 
         $this->assertArrayHasKey('travel:ask', $commands);
+    }
+
+    public function test_router_agent_has_no_tools(): void
+    {
+        $agent = new RouterAgent;
+
+        $this->assertFalse($agent instanceof HasTools);
+    }
+
+    public function test_router_agent_has_instructions(): void
+    {
+        $agent = new RouterAgent;
+
+        $instructions = (string) $agent->instructions();
+
+        $this->assertStringContainsString('simple', $instructions);
+        $this->assertStringContainsString('medium', $instructions);
+        $this->assertStringContainsString('complex', $instructions);
+    }
+
+    public function test_router_agent_classifies_simple_query(): void
+    {
+        RouterAgent::fake(['simple']);
+
+        $response = (new RouterAgent)->prompt('北京今天天气');
+
+        $this->assertEquals('simple', trim($response->text));
+    }
+
+    public function test_router_agent_classifies_medium_query(): void
+    {
+        RouterAgent::fake(['medium']);
+
+        $response = (new RouterAgent)->prompt('北京天气怎么样，推荐景点');
+
+        $this->assertEquals('medium', trim($response->text));
+    }
+
+    public function test_router_agent_classifies_complex_query(): void
+    {
+        RouterAgent::fake(['complex']);
+
+        $response = (new RouterAgent)->prompt('帮我规划3天北京深度游');
+
+        $this->assertEquals('complex', trim($response->text));
     }
 }
