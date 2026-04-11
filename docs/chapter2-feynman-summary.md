@@ -296,22 +296,6 @@ LLM（推理核心）
 
 ---
 
-## 九、这章对我们写 Laravel Agent 有什么启发？
-
-1. **工具调用 = 强化学习的行动循环**：`GetWeather`、`GetAttraction` 等工具就是智能体与环境的接口，Tool Result 就是"奖励信号"的现代版。
-
-2. **SavePreference / GetPreferences = 记忆模块**：对应 LLM 智能体架构里的 Memory Module，解决了 ELIZA 无状态（Stateless）的问题。
-
-3. **TrackRejection = 反思机制（Reflection）**：连续拒绝 3 次触发策略调整，正是图 2.10 中"自我批判（Self-criticism）"机制的具体实现。
-
-4. **RemembersConversations trait = 短期记忆**：对应架构图中的对话历史缓存，让 Agent 能跨轮次保持上下文。
-
-5. **#[MaxSteps(10)] = 避免无限循环**：现代 Agent 需要有退出条件，这是工程实现中对"感知-思考-行动"循环的安全约束。
-
----
-
----
-
 ## 十、联结主义 vs 强化学习：解决的是不同问题
 
 ### 联结主义的本质局限
