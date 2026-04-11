@@ -28,19 +28,49 @@ class TravelAssistant implements Agent, Conversational, HasTools
 {
     use Promptable, RemembersConversations;
 
-    public function __construct(private int $userId = 0) {}
+    public function __construct(
+        private int $userId = 0,
+        private string $mode = 'simple',
+    ) {}
 
     /**
      * Get the instructions that the agent should follow.
      */
     public function instructions(): Stringable|string
     {
-        return <<<'PROMPT'
-        你是一个智能旅行助手。你的任务是分析用户的请求，并使用可用工具一步步地解决问题。
+        return match ($this->mode) {
+            'medium' => $this->reactInstructions(),
+            'complex' => $this->planReactInstructions(),
+            default => $this->simpleInstructions(),
+        };
+    }
 
-        # 重要提示:
-        - 每次只执行一个工具调用
-        - 当收集到足够信息可以回答用户问题时，给出最终答案
+    private function simpleInstructions(): string
+    {
+        return <<<'PROMPT'
+        你是一个智能旅行助手。直接使用工具回答用户问题，简洁明了。
+        PROMPT;
+    }
+
+    private function reactInstructions(): string
+    {
+        return <<<'PROMPT'
+        你是一个智能旅行助手。
+        每次调用工具之前，你必须先输出你的思考过程，说明：你现在掌握了什么信息、还缺什么信息、为什么要调用这个工具。
+        每次只执行一个工具调用。
+        收集到足够信息后给出最终答案。
+        PROMPT;
+    }
+
+    private function planReactInstructions(): string
+    {
+        return <<<'PROMPT'
+        你是一个智能旅行助手。你会收到一份分步计划。
+        请严格按照计划的步骤逐步执行，每步：
+        1. 说明当前执行计划的第几步
+        2. 说出思考过程
+        3. 调用工具
+        不要跳步，不要合并步骤。全部执行完后输出完整的最终答案。
         PROMPT;
     }
 

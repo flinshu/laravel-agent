@@ -41,12 +41,12 @@ class TravelAssistantTest extends TestCase
 
     public function test_travel_assistant_has_instructions(): void
     {
-        $agent = new TravelAssistant;
+        $agent = new TravelAssistant(mode: 'medium');
 
         $instructions = (string) $agent->instructions();
 
         $this->assertStringContainsString('智能旅行助手', $instructions);
-        $this->assertStringContainsString('重要提示', $instructions);
+        $this->assertStringContainsString('思考过程', $instructions);
     }
 
     public function test_travel_assistant_can_be_prompted_with_fake(): void
@@ -330,5 +330,55 @@ class TravelAssistantTest extends TestCase
 
         $this->assertStringContainsString('问题', $response->text);
         $this->assertStringNotContainsString('无需改进', $response->text);
+    }
+
+    public function test_travel_assistant_simple_mode_instructions(): void
+    {
+        $agent = new TravelAssistant(userId: 1, mode: 'simple');
+
+        $instructions = (string) $agent->instructions();
+
+        $this->assertStringContainsString('直接', $instructions);
+        $this->assertStringNotContainsString('思考过程', $instructions);
+    }
+
+    public function test_travel_assistant_medium_mode_instructions(): void
+    {
+        $agent = new TravelAssistant(userId: 1, mode: 'medium');
+
+        $instructions = (string) $agent->instructions();
+
+        $this->assertStringContainsString('思考过程', $instructions);
+        $this->assertStringContainsString('每次只执行一个工具调用', $instructions);
+    }
+
+    public function test_travel_assistant_complex_mode_instructions(): void
+    {
+        $agent = new TravelAssistant(userId: 1, mode: 'complex');
+
+        $instructions = (string) $agent->instructions();
+
+        $this->assertStringContainsString('计划', $instructions);
+        $this->assertStringContainsString('第几步', $instructions);
+    }
+
+    public function test_travel_assistant_default_mode_is_simple(): void
+    {
+        $agent = new TravelAssistant(userId: 1);
+
+        $instructions = (string) $agent->instructions();
+
+        $this->assertStringContainsString('直接', $instructions);
+    }
+
+    public function test_travel_assistant_tools_unchanged_across_modes(): void
+    {
+        $simpleTools = iterator_to_array((new TravelAssistant(userId: 1, mode: 'simple'))->tools());
+        $mediumTools = iterator_to_array((new TravelAssistant(userId: 1, mode: 'medium'))->tools());
+        $complexTools = iterator_to_array((new TravelAssistant(userId: 1, mode: 'complex'))->tools());
+
+        $this->assertCount(6, $simpleTools);
+        $this->assertCount(6, $mediumTools);
+        $this->assertCount(6, $complexTools);
     }
 }
