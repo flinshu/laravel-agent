@@ -95,9 +95,14 @@ class TravelAssistantCommand extends Command
 
         foreach ($response->steps as $index => $step) {
             $toolNames = collect($step->toolCalls)->pluck('name')->implode(', ');
+            $stepLabel = 'Step '.($index + 1);
 
             if ($toolNames) {
-                $this->components->twoColumnDetail('Step '.($index + 1), $toolNames);
+                $this->components->twoColumnDetail($stepLabel, $toolNames);
+            }
+
+            if (filled($step->text) && $toolNames) {
+                $this->line("  <fg=gray>[思考]: {$step->text}</>");
             }
         }
 
