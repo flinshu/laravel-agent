@@ -381,4 +381,54 @@ class TravelAssistantTest extends TestCase
         $this->assertCount(6, $mediumTools);
         $this->assertCount(6, $complexTools);
     }
+
+    public function test_command_routes_simple_query(): void
+    {
+        RouterAgent::fake(['simple']);
+        TravelAssistant::fake(['北京今天晴天，25°C。']);
+
+        $this->artisan('travel:ask', ['prompt' => '北京今天天气'])
+            ->assertSuccessful();
+
+        TravelAssistant::assertPrompted(fn ($prompt) => str_contains($prompt->prompt, '北京今天天气'));
+    }
+
+    public function test_command_routes_medium_query_with_review(): void
+    {
+        RouterAgent::fake(['medium']);
+        TravelAssistant::fake(['推荐故宫，门票充足。']);
+        ReviewerAgent::fake(['无需改进']);
+
+        $this->artisan('travel:ask', ['prompt' => '推荐北京景点'])
+            ->assertSuccessful();
+    }
+
+    public function test_command_routes_complex_query_with_plan_and_review(): void
+    {
+        RouterAgent::fake(['complex']);
+        PlannerAgent::fake(["1. 查天气\n2. 查景点\n3. 查门票"]);
+        TravelAssistant::fake(['3天行程：Day1 故宫，Day2 长城，Day3 颐和园。']);
+        ReviewerAgent::fake(['无需改进']);
+
+        $this->artisan('travel:ask', ['prompt' => '规划3天北京行程'])
+            ->assertSuccessful();
+
+        PlannerAgent::assertPrompted(fn ($prompt) => str_contains($prompt->prompt, '3天'));
+    }
+
+    public function test_command_retries_when_review_finds_issues(): void
+    {
+        RouterAgent::fake(['medium']);
+        TravelAssistant::fake([
+            '推荐故宫，非常值得一去。',
+            '推荐国家博物馆，免费参观。',
+        ]);
+        ReviewerAgent::fake([
+            '[问题1]: 故宫门票已售罄（事实：今日无余票）',
+            '无需改进',
+        ]);
+
+        $this->artisan('travel:ask', ['prompt' => '推荐北京景点'])
+            ->assertSuccessful();
+    }
 }

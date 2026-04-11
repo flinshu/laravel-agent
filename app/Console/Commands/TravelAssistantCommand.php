@@ -2,6 +2,9 @@
 
 namespace App\Console\Commands;
 
+use App\Ai\Agents\PlannerAgent;
+use App\Ai\Agents\ReviewerAgent;
+use App\Ai\Agents\RouterAgent;
 use App\Ai\Agents\TravelAssistant;
 use App\Models\User;
 use Illuminate\Console\Attributes\Description;
@@ -37,15 +40,81 @@ class TravelAssistantCommand extends Command
         $prompt = $this->argument('prompt')
             ?? $this->ask('What would you like to know?', '请查询北京天气并推荐合适的旅游景点。');
 
-        $agent = new TravelAssistant($user->id);
+        // Step 1: Route — classify complexity
+        $this->info('正在分析问题复杂度...');
+        $level = trim(strtolower((new RouterAgent)->prompt($prompt)->text));
 
-        $this->info('Thinking...');
+        if (! in_array($level, ['simple', 'medium', 'complex'])) {
+            $level = 'medium';
+        }
 
-        $response = $agent->forUser($user)->prompt($prompt);
+        $this->components->twoColumnDetail('复杂度', $level);
 
+        // Step 2: Plan — complex only
+        $executionPrompt = $prompt;
+
+        if ($level === 'complex') {
+            $this->info('正在生成计划...');
+            $plan = (new PlannerAgent)->prompt($prompt);
+            $this->line($plan->text);
+            $this->newLine();
+            $executionPrompt = "请按照以下计划执行：\n{$plan->text}\n\n用户原始需求：{$prompt}";
+        }
+
+        // Step 3: Execute
+        $this->info('正在执行...');
+        $agent = new TravelAssistant($user->id, mode: $level);
+        $response = $agent->forUser($user)->prompt($executionPrompt);
         $this->printResponse($response);
 
+        // Step 4: Review — medium and complex only
+        if ($level !== 'simple') {
+            $response = $this->review($user, $agent, $response, $prompt);
+        }
+
         return self::SUCCESS;
+    }
+
+    /**
+     * Review the agent response and retry if issues are found.
+     */
+    private function review(User $user, TravelAssistant $agent, mixed $response, string $originalPrompt): mixed
+    {
+        $this->info('正在质量检查...');
+        $reviewer = new ReviewerAgent($user->id);
+        $review = $reviewer->prompt(
+            "请检查以下旅行推荐结果：\n{$response->text}\n\n用户原始需求：{$originalPrompt}"
+        );
+
+        if (str_contains($review->text, '无需改进')) {
+            $this->info('✅ 质量检查通过');
+
+            return $response;
+        }
+
+        // Retry once with feedback
+        $this->warn('发现问题，正在修正...');
+        $this->line($review->text);
+        $this->newLine();
+
+        $response = $agent->forUser($user)->prompt(
+            "你之前的推荐存在以下问题：\n{$review->text}\n\n请修正后重新推荐。用户原始需求：{$originalPrompt}"
+        );
+        $this->printResponse($response);
+
+        // Scoped recheck
+        $this->info('正在复查...');
+        $recheck = $reviewer->prompt(
+            "上一次检查发现以下问题：\n{$review->text}\n\n请只验证这些问题是否已修正：\n{$response->text}"
+        );
+
+        if (str_contains($recheck->text, '无需改进')) {
+            $this->info('✅ 修正后验证通过');
+        } else {
+            $this->warn('⚠️ 部分问题仍未解决，建议自行确认门票等信息。');
+        }
+
+        return $response;
     }
 
     /**
