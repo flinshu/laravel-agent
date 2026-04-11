@@ -11,6 +11,7 @@ use App\Ai\Tools\TrackRejection;
 use Laravel\Ai\Attributes\MaxSteps;
 use Laravel\Ai\Attributes\Model;
 use Laravel\Ai\Attributes\Provider;
+use Laravel\Ai\Attributes\Temperature;
 use Laravel\Ai\Concerns\RemembersConversations;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\Conversational;
@@ -22,6 +23,7 @@ use Stringable;
 #[Provider('groq')]
 #[Model('glm-5.1')]
 #[MaxSteps(10)]
+#[Temperature(0.5)]
 class TravelAssistant implements Agent, Conversational, HasTools
 {
     use Promptable, RemembersConversations;
