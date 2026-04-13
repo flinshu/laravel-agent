@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Ai\Agents\GuardAgent;
 use App\Ai\Agents\PlannerAgent;
 use App\Ai\Agents\ReviewerAgent;
 use App\Ai\Agents\RouterAgent;
@@ -202,6 +203,51 @@ class TravelAssistantTest extends TestCase
         $this->assertArrayHasKey('travel:ask', $commands);
     }
 
+    public function test_guard_agent_has_no_tools(): void
+    {
+        $agent = new GuardAgent;
+
+        $this->assertFalse($agent instanceof HasTools);
+    }
+
+    public function test_guard_agent_has_instructions(): void
+    {
+        $agent = new GuardAgent;
+
+        $instructions = (string) $agent->instructions();
+
+        $this->assertStringContainsString('旅行', $instructions);
+        $this->assertStringContainsString('yes', $instructions);
+        $this->assertStringContainsString('no', $instructions);
+    }
+
+    public function test_guard_agent_allows_travel_query(): void
+    {
+        GuardAgent::fake(['yes']);
+
+        $response = (new GuardAgent)->prompt('北京今天天气');
+
+        $this->assertEquals('yes', trim($response->text));
+    }
+
+    public function test_guard_agent_rejects_non_travel_query(): void
+    {
+        GuardAgent::fake(['no']);
+
+        $response = (new GuardAgent)->prompt('给我讲个笑话');
+
+        $this->assertEquals('no', trim($response->text));
+    }
+
+    public function test_command_rejects_non_travel_query(): void
+    {
+        GuardAgent::fake(['no']);
+
+        $this->artisan('travel:ask', ['prompt' => '给我讲个笑话'])
+            ->expectsOutputToContain('只能回答旅行相关的问题')
+            ->assertSuccessful();
+    }
+
     public function test_router_agent_has_no_tools(): void
     {
         $agent = new RouterAgent;
@@ -384,6 +430,7 @@ class TravelAssistantTest extends TestCase
 
     public function test_command_routes_simple_query(): void
     {
+        GuardAgent::fake(['yes']);
         RouterAgent::fake(['simple']);
         TravelAssistant::fake(['北京今天晴天，25°C。']);
 
@@ -395,6 +442,7 @@ class TravelAssistantTest extends TestCase
 
     public function test_command_routes_medium_query_with_review(): void
     {
+        GuardAgent::fake(['yes']);
         RouterAgent::fake(['medium']);
         TravelAssistant::fake(['推荐故宫，门票充足。']);
         ReviewerAgent::fake(['无需改进']);
@@ -405,6 +453,7 @@ class TravelAssistantTest extends TestCase
 
     public function test_command_routes_complex_query_with_plan_and_review(): void
     {
+        GuardAgent::fake(['yes']);
         RouterAgent::fake(['complex']);
         PlannerAgent::fake(["1. 查天气\n2. 查景点\n3. 查门票"]);
         TravelAssistant::fake(['3天行程：Day1 故宫，Day2 长城，Day3 颐和园。']);
@@ -418,6 +467,7 @@ class TravelAssistantTest extends TestCase
 
     public function test_command_retries_when_review_finds_issues(): void
     {
+        GuardAgent::fake(['yes']);
         RouterAgent::fake(['medium']);
         TravelAssistant::fake([
             '推荐故宫，非常值得一去。',

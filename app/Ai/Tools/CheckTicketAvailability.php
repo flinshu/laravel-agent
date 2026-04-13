@@ -3,6 +3,7 @@
 namespace App\Ai\Tools;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request;
@@ -32,14 +33,18 @@ class CheckTicketAvailability implements Tool
             return "{$attraction} 门票状态未知（未配置搜索API），建议直接前往或提前电话确认。";
         }
 
-        $response = Http::timeout(10)
-            ->connectTimeout(5)
-            ->withToken($apiKey, 'Bearer')
-            ->post('https://api.tavily.com/search', [
-                'query' => "{$attraction} {$date} 门票 余票 是否售罄",
-                'search_depth' => 'basic',
-                'include_answer' => true,
-            ]);
+        try {
+            $response = Http::timeout(10)
+                ->connectTimeout(5)
+                ->withToken($apiKey, 'Bearer')
+                ->post('https://api.tavily.com/search', [
+                    'query' => "{$attraction} {$date} 门票 余票 是否售罄",
+                    'search_depth' => 'basic',
+                    'include_answer' => true,
+                ]);
+        } catch (ConnectionException) {
+            return "{$attraction} 门票状态查询超时，建议提前通过官方渠道确认。";
+        }
 
         if ($response->failed()) {
             return "{$attraction} 门票状态查询失败，建议提前通过官方渠道确认。";

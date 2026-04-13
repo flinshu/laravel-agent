@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Ai\Agents\GuardAgent;
 use App\Ai\Agents\PlannerAgent;
 use App\Ai\Agents\ReviewerAgent;
 use App\Ai\Agents\RouterAgent;
@@ -39,6 +40,15 @@ class TravelAssistantCommand extends Command
     {
         $prompt = $this->argument('prompt')
             ?? $this->ask('What would you like to know?', '请查询北京天气并推荐合适的旅游景点。');
+
+        // Step 0: Guard — check if travel-related
+        $isTravelRelated = trim(strtolower((new GuardAgent)->prompt($prompt)->text));
+
+        if ($isTravelRelated !== 'yes') {
+            $this->warn('抱歉，我是旅行助手，只能回答旅行相关的问题。');
+
+            return self::SUCCESS;
+        }
 
         // Step 1: Route — classify complexity
         $this->info('正在分析问题复杂度...');
